@@ -4,6 +4,7 @@
 
 """
 
+import sys
 import requests
 import json
 from tqdm import tqdm
@@ -44,7 +45,11 @@ def getWeaponType(string):
 
 
 class Scraper:
-    subreddits = ["MHRise"]
+    subreddits = [
+        "MonsterHunter",
+        "MHRise",
+        "MonsterHunterMeta"
+    ]
 
     def _getUserMetadata(self, child, filtered):
         user_id = child.get("author")
@@ -74,10 +79,9 @@ class Scraper:
         })
 
     def scrapeAllComments(self, total=100):
-        after = "="
         limit = 100
-
         for name in self.subreddits:
+            after = "="
             filtered = {
                 "parents": {},
                 "comments": [],
@@ -111,43 +115,72 @@ class Scraper:
 
 # a = Scraper()
 # a.scrapeAllComments(10000)
+def clean(sentence):
+    return re.sub("[^'a-zA-Z\\d:]", " ", sentence)
+
 
 def tokenize(sentence):
-    return [word.lower().strip() for word in sentence.split(" ")]
+    n1 = [word.lower().strip() for word in clean(sentence).split(" ")]
+    n2 = [f"{n1[i]} {n1[i+1]}" for i in range(len(n1) - 2 + 1)]
+    return n2
+
+
+def tokenizeSentences(a):
+    return [w for i in a for w in tokenize(i)]
 
 
 class Stuff:
 
-    def tf(self, document):
-        pass
-
-    def idf(self, documents):
-
+    def tf_idf(self, corpus):
+        tf = Counter(
+            [w for documents in corpus for w in tokenizeSentences(documents)])
         df = {}
-        for doc in documents:
-            ws = set(tokenize(doc))
+        for documents in corpus:
+            ws = set(tokenizeSentences(documents))
             for w in ws:
                 if w in df:
-                    df[w] += 1
+                    df[w].append(documents)
                 else:
-                    df[w] = 1
-        len_doc = len(documents)
-        idf = {i: math.log(len_doc / df[i]) for i in df}
-        sorted_idf = {k: v for k, v in sorted(idf.items(), key=lambda item: -item[1])}
-        return sorted_idf
-
-    def tf_idf(self, wat):
-        pass
+                    df[w] = [documents]
+        len_doc = len(corpus)
+        idf = {i: math.log(len_doc / len(df[i])) for i in df}
+        tf_idf = {i: math.log(tf[i]) * idf[i] for i in idf}
+        sorted_tf_idf = {k: v for k, v in sorted(
+            tf_idf.items(), key=lambda x: -x[1])}
+        return sorted_tf_idf, tf
 
     def wac(self):
-        with open("/Users/ando/work/baking/redditbot/filtered/1680231634_MHRise.json", "r") as f:
-            data = json.load(f)
-            comments = data["comments"]
-            comments = [re.sub("[^'a-zA-Z\\d:]", " ", a["body"]) for a in comments]
-            idf = self.idf(comments)
+        path = "/mnt/SSDee/work/baking/redditmhbot/filtered/"
+        filenames = os.listdir(path)
+        curr = int(time.time())
+        wac = sorted([(int(i[:10]), i)
+                      for i in filenames], key=lambda x: curr - x[0])
 
-            print()
+        a = {}
+        for _, name in wac:
+            with open(path + name, "r") as f:
+                data = json.load(f)
+                for i in data["parents"]:
+                    a[i] = [data["parents"][i]]
+
+                for comment in data["comments"]:
+                    a[comment["parent_id"]].append(comment["body"])
+
+                sorted_tf_idf, tf = self.tf_idf([a[i] for i in a])
 
 
-a = Stuff()
-a.wac()
+if __name__ == '__main__':
+    try:
+        action = sys.argv[1]
+        if action == "scrape":
+            a = Scraper()
+            a.scrapeAllComments(10000)
+        elif action == "idf":
+            a = Stuff()
+            a.wac()
+    except IndexError:
+        a = Stuff()
+        a.wac()
+        # print("what's up dude")
+# a = Stuff()
+# a.wac()
