@@ -1,6 +1,5 @@
 """
-# bot to scrape entire monster hunter mhrise subreddit, figure out if there's
-  trend going on
+# bot to scrape entire monster hunter mhrise subreddit, figure out if there's a trend going on
 
 """
 
@@ -73,11 +72,19 @@ class Scraper:
         author = child.get("author")
         parent_id = child.get("link_id")
 
+        created = child.get("created")
+        score = child.get("score")
+        controversiality = child.get("controversiality")
+
         filtered["comments"].append({
             "name": name,
             "body": body,
             "author": author,
-            "parent_id": parent_id
+            "parent_id": parent_id,
+            
+            "created": created,
+            "score": score,
+            "controversiality": controversiality
         })
 
     def scrape(self, total, name, limit, now):
@@ -108,8 +115,8 @@ class Scraper:
                 print(f"ERROR: something happened {e}")
                 break
 
-        # with open(f"./filtered/{int(time.time())}_{name}.json", "w+") as f:
-        #     f.write(json.dumps(filtered))
+        with open(f"./filtered/{int(time.time())}_{name}.json", "w+") as f:
+            f.write(json.dumps(filtered))
 
     def scrapeAllComments(self, total=100):
         limit = 100
@@ -143,8 +150,9 @@ def tokenizeSentences(a):
     return [w for i in a for w in tokenize(i)]
 
 
-class Stuff:
+class corpus
 
+class Stuff:
     def tf_idf(self, corpus):
         tf = Counter(
             [w for documents in corpus for w in tokenizeSentences(documents)])
@@ -194,6 +202,15 @@ class Stuff:
             print([i for i in sorted_tf_idf][:30])
 
 
+
+def call_scrape():
+    a = Scraper()
+    a.scrapeAllComments(900)
+
+def cal_idf():
+    b = Stuff()
+    b.wac()
+
 if __name__ == '__main__':
     try:
         action = sys.argv[1]
@@ -209,9 +226,24 @@ if __name__ == '__main__':
             b = Stuff()
             b.wac()
     except IndexError:
+        call_scrape()
         # a = Stuff()
         # a.wac()
-        print(stopwords)
+        # print(stopwords)
         # print("what's up dude")
 # a = Stuff()
 # a.wac()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
