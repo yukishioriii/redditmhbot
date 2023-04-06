@@ -81,7 +81,7 @@ class Scraper:
             "body": body,
             "author": author,
             "parent_id": parent_id,
-            
+
             "created": created,
             "score": score,
             "controversiality": controversiality
@@ -120,7 +120,7 @@ class Scraper:
 
     def scrapeAllComments(self, total=100):
         limit = 100
-        now = int(time.time())
+        now = f"{int(time.time())}".rjust(10, "0")
         os.makedirs(f"./raw/{now}")
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             for name in self.subreddits:
@@ -140,17 +140,19 @@ with open("stopwords.txt", "r") as f:
 
 
 def tokenize(sentence):
-    n1 = [word.lower().strip() for word in clean(sentence).split(" ") if word.lower().strip() not in stopwords]
-    n1 = [lemma.lemmatize(word) if word not in WPN_SHORT else word for word in n1]
-    n2 = [f"{n1[i]} {n1[i+1]}" for i in range(len(n1) - 2 + 1) if n1[i] and n1[i+1]]
+    n1 = [word.lower().strip() for word in clean(sentence).split(" ")
+          if word.lower().strip() not in stopwords]
+    n1 = [lemma.lemmatize(
+        word) if word not in WPN_SHORT else word for word in n1]
+    n2 = [
+        f"{n1[i]} {n1[i+1]}" for i in range(len(n1) - 2 + 1) if n1[i] and n1[i+1]]
     return n2
 
 
 def tokenizeSentences(a):
-    return [w for i in a for w in tokenize(i)]
+    latest_date_used = {}
+    return [w for i in a for w in tokenize(i, latest_date_used)]
 
-
-class corpus
 
 class Stuff:
     def tf_idf(self, corpus):
@@ -172,7 +174,7 @@ class Stuff:
         return sorted_tf_idf, tf
 
     def wac(self):
-        path = "/Users/ando/work/baking/redditbot/filtered/"
+        path = "/mnt/SSDee/work/baking/redditmhbot/filtered/"
         filenames = os.listdir(path)
         curr = int(time.time())
         wac = sorted([(int(i[:10]), i)
@@ -183,6 +185,12 @@ class Stuff:
             "MHRise": {},
             "MonsterHunterMeta": {}
         }
+        for i in corpus:
+            corpus[i]["parents"] = {}
+            corpus[i]["comments"] = {}
+            corpus[i]["users"] = {}
+
+        seven_day_b7 = int(time.time()) - (60*60*24*7)
         for _, name in wac:
             a = {}
             with open(path + name, "r") as f:
@@ -192,58 +200,53 @@ class Stuff:
                 for i in data["parents"]:
                     a[i] = [data["parents"][i]]
 
-                for comment in data["comments"]:
-                    a[comment["parent_id"]].append(comment["body"])
-                corpus[category] = {**corpus[category], **a}
+                corpus[category]["users"] = {
+                    **corpus[category]["users"], **data["users"]}
+
+                comments = {i["name"]: i for i in data["comments"]}
+
+                corpus[category]["comments"] = {
+                    **corpus[category]["comments"], **comments}
+
+                parents = {i:[(None,None, data["parents"][i])] for i in data["parents"]}
+
+                for i in data["comments"]:
+                    parents[i["parent_id"]].append((i.get("score", 0), i.get("created", seven_day_b7), i["body"]))
+                
+                corpus[category]["parents"] = {
+                    **corpus[category]["parents"], **parents}
+        print()
 
         for cat in corpus:
             print(f"______{cat}_____")
-            sorted_tf_idf, tf = self.tf_idf([corpus[cat][i] for i in corpus[cat]])
+            sorted_tf_idf, tf = self.tf_idf(
+                [corpus[cat][i] for i in corpus[cat]])
             print([i for i in sorted_tf_idf][:30])
-
 
 
 def call_scrape():
     a = Scraper()
     a.scrapeAllComments(900)
 
+
 def cal_idf():
     b = Stuff()
     b.wac()
+
 
 if __name__ == '__main__':
     try:
         action = sys.argv[1]
         if action == "scrape":
-            a = Scraper()
-            a.scrapeAllComments(900)
+            call_scrape()
         elif action == "idf":
-            a = Stuff()
-            a.wac()
+            cal_idf()
         elif action == "all":
-            a = Scraper()
-            a.scrapeAllComments(900)
-            b = Stuff()
-            b.wac()
+            call_scrape()
+            cal_idf()
     except IndexError:
-        call_scrape()
-        # a = Stuff()
-        # a.wac()
+        cal_idf()
         # print(stopwords)
         # print("what's up dude")
 # a = Stuff()
 # a.wac()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
