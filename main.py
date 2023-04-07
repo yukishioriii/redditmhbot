@@ -141,11 +141,19 @@ with open("stopwords.txt", "r") as f:
     stopwords = set(f.read().splitlines())
 
 
+def get_where(df, term):
+    for i in df[term]:
+        for _, _, j in i:
+            if term in j:
+                print("----------------")
+                print(j)
+
+
 class Stuff:
     latest_date_used = {}
     now = time.time()
 
-    def tokenize(self, score, date, sentence):
+    def tokenize(self, score, date, sentence, n=1):
         if date is None:
             date = ONE_WEEK_B4
         n1 = [word.lower().strip() for word in clean(sentence).split(" ")
@@ -153,29 +161,30 @@ class Stuff:
         n1 = [lemma.lemmatize(
             word) if word not in WPN_SHORT else word for word in n1]
         n2 = []
-        for i in range(len(n1) - 2 + 1):
-            if not (n1[i] and n1[i+1]):
+        for i in range(len(n1) - n + 1):
+
+            if not all([n1[j] for j in range(i, i+n)]):
                 continue
-            word = f"{n1[i]} {n1[i+1]}"
+            word = " ".join([n1[j] for j in range(i, i+n)])
             n2.append(word)
             if not self.latest_date_used.get(word) or date > self.latest_date_used[word]:
                 self.latest_date_used[word] = date
 
         return n2
 
-    def tokenizeSentences(self, a):
-        return [w for (score, date, sentence) in a for w in self.tokenize(score, date, sentence)]
+    def tokenizeSentences(self, a, n):
+        return [w for (score, date, sentence) in a for w in self.tokenize(score, date, sentence, n)]
 
     def weight(self, word):
-        days_elapsed = (self.now - self.latest_date_used[word]) // 50400
+        days_elapsed = (self.now - self.latest_date_used[word]) / 50400
         return 6 / (days_elapsed + 3)
 
-    def tf_idf(self, corpus):
+    def tf_idf(self, corpus, n=1):
         tf = Counter(
-            [w for s in corpus for w in self.tokenizeSentences(s)])
+            [w for s in corpus for w in self.tokenizeSentences(s, n)])
         df = {}
         for documents in corpus:
-            ws = set(self.tokenizeSentences(documents))
+            ws = set(self.tokenizeSentences(documents, n))
             for w in ws:
                 if w in df:
                     df[w].append(documents)
@@ -184,6 +193,8 @@ class Stuff:
         len_doc = len(corpus)
         idf = {i: math.log(len_doc / len(df[i])) for i in df}
         tf_idf = {i: math.log(tf[i]) * self.weight(i) * idf[i] for i in idf}
+        sorted_idf = {k: v for k, v in sorted(
+            idf.items(), key=lambda x: -x[1])}
         sorted_tf_idf = {k: v for k, v in sorted(
             tf_idf.items(), key=lambda x: -x[1])}
         return sorted_tf_idf, tf
@@ -232,8 +243,10 @@ class Stuff:
 
         for cat in corpus:
             print(f"______{cat}_____")
-            sorted_tf_idf, tf = self.tf_idf([i for i in corpus[cat]["parents"].values()])
-            print([i for i in sorted_tf_idf][:30])
+            for i in range(1, 3):
+                print()
+                sorted_tf_idf, tf = self.tf_idf([i for i in corpus[cat]["parents"].values()], n=i)
+                print([i for i in sorted_tf_idf][:20])
 
 
 def call_scrape():
